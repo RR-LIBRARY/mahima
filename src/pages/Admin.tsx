@@ -22,6 +22,7 @@ import {
   Download, Filter, RefreshCw, ChevronDown, Eye, IndianRupee, Loader2, ClipboardCheck, Library
 } from "lucide-react";
 import { ADMIN_CONFIG } from "@/lib/adminConfig";
+import ContentDrillDown from "@/components/admin/ContentDrillDown";
 
 // Types for users list
 interface UserWithRole {
@@ -1087,142 +1088,17 @@ const Admin = () => {
             </div>
           </TabsContent>
 
-          {/* --- TAB 3: CONTENT (with search, filter, export) --- */}
+          {/* --- TAB 3: CONTENT (Drill-down: Course > Chapter > Lessons) --- */}
           <TabsContent value="content">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <CardTitle>Manage Lessons</CardTitle>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Search */}
-                    <div className="relative flex-1 min-w-[200px]">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input 
-                        placeholder="Search lessons..." 
-                        value={lessonSearch}
-                        onChange={(e) => setLessonSearch(e.target.value)}
-                        className="pl-9"
-                      />
-                    </div>
-                    {/* Type Filter */}
-                    <Select value={lessonTypeFilter} onValueChange={(v: any) => setLessonTypeFilter(v)}>
-                      <SelectTrigger className="w-[120px]">
-                        <Filter className="h-4 w-4 mr-2" />
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="VIDEO">Video</SelectItem>
-                        <SelectItem value="PDF">PDF</SelectItem>
-                        <SelectItem value="DPP">DPP</SelectItem>
-                        <SelectItem value="NOTES">Notes</SelectItem>
-                        <SelectItem value="TEST">Test</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {/* Export */}
-                    <Button variant="outline" size="sm" onClick={() => exportToCSV(filteredLessons.map(l => ({
-                      title: l.title,
-                      type: l.type,
-                      course: l.courses?.title,
-                      video_url: l.video_url,
-                      pdf_url: l.pdf_url,
-                      created_at: l.created_at
-                    })), 'lessons')}>
-                      <Download className="h-4 w-4 mr-1" /> Export
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[500px]">
-                  {filteredLessons.length === 0 ? (
-                    <p className="text-center text-gray-400 py-10">No content found.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {filteredLessons.map((l) => (
-                        <div key={l.id} className="p-3 border rounded bg-white">
-                        {editingLessonId === l.id ? (
-                            <div className="space-y-2">
-                              <Input value={editLessonData.title} onChange={(e) => setEditLessonData({...editLessonData, title: e.target.value})} placeholder="Title" />
-                              <Input value={editLessonData.video_url} onChange={(e) => setEditLessonData({...editLessonData, video_url: e.target.value})} placeholder="URL" />
-                              <div className="grid grid-cols-2 gap-2">
-                                <Select value={editLessonData.lecture_type} onValueChange={(v) => setEditLessonData({...editLessonData, lecture_type: v})}>
-                                  <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="VIDEO">Video</SelectItem>
-                                    <SelectItem value="PDF">PDF</SelectItem>
-                                    <SelectItem value="DPP">DPP</SelectItem>
-                                    <SelectItem value="NOTES">Notes</SelectItem>
-                                    <SelectItem value="TEST">Test</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <Input type="number" value={editLessonData.position} onChange={(e) => setEditLessonData({...editLessonData, position: e.target.value})} placeholder="Position" />
-                              </div>
-                              {chaptersList.length > 0 && (
-                                <Select value={editLessonData.chapter_id} onValueChange={(v) => setEditLessonData({...editLessonData, chapter_id: v})}>
-                                  <SelectTrigger><SelectValue placeholder="Chapter" /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="">No Chapter</SelectItem>
-                                    {chaptersList.map(ch => <SelectItem key={ch.id} value={ch.id}>{ch.title}</SelectItem>)}
-                                  </SelectContent>
-                                </Select>
-                              )}
-                              <Textarea value={editLessonData.description} onChange={(e) => setEditLessonData({...editLessonData, description: e.target.value})} placeholder="Description" rows={2} />
-                              <div className="flex items-center gap-2">
-                                <label className="flex items-center gap-2 text-sm">
-                                  <input type="checkbox" checked={editLessonData.is_locked} onChange={(e) => setEditLessonData({...editLessonData, is_locked: e.target.checked})} />
-                                  Locked
-                                </label>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button size="sm" onClick={handleSaveLessonEdit}><CheckCircle className="h-3 w-3 mr-1" /> Save</Button>
-                                <Button size="sm" variant="ghost" onClick={() => setEditingLessonId(null)}>Cancel</Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded ${
-                                  l.lecture_type === 'VIDEO' ? 'bg-blue-100 text-blue-600' : 
-                                  l.lecture_type === 'PDF' ? 'bg-orange-100 text-orange-600' :
-                                  l.lecture_type === 'DPP' ? 'bg-green-100 text-green-600' :
-                                  l.lecture_type === 'NOTES' ? 'bg-purple-100 text-purple-600' :
-                                  'bg-gray-100 text-gray-600'
-                                }`}>
-                                  {l.lecture_type === 'VIDEO' ? <Video className="h-4 w-4"/> : <FileText className="h-4 w-4"/>}
-                                </div>
-                                <div>
-                                  <p className="font-medium text-sm">{l.title}</p>
-                                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                                    <span>{l.courses?.title}</span>
-                                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">{l.lecture_type || 'VIDEO'}</Badge>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {l.video_url && (
-                                  <a href={l.video_url} target="_blank" rel="noopener noreferrer">
-                                    <Button size="icon" variant="ghost" className="text-blue-500 hover:bg-blue-50">
-                                      <ExternalLink className="h-4 w-4"/>
-                                    </Button>
-                                  </a>
-                                )}
-                                <Button size="icon" variant="ghost" className="text-gray-500" onClick={() => handleEditLesson(l)}>
-                                  <Eye className="h-4 w-4"/>
-                                </Button>
-                                <Button size="icon" variant="ghost" className="text-red-400 hover:text-red-600" onClick={() => handleDeleteLesson(l.id)}>
-                                  <Trash2 className="h-4 w-4"/>
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </CardContent>
-            </Card>
+            <ContentDrillDown
+              coursesList={coursesList}
+              onNavigateToUpload={(courseId, chapterId) => {
+                setSelectedCourse(courseId);
+                if (chapterId) setSelectedChapter(chapterId);
+                setActiveTab("upload");
+              }}
+              onRefresh={fetchDashboardData}
+            />
           </TabsContent>
 
           {/* --- TAB 4: UPLOAD (with chapter, link/file toggle, description) --- */}
