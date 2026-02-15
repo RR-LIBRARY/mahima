@@ -1,7 +1,6 @@
 import { memo, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ExternalLink, Download, FileText } from "lucide-react";
+import { ExternalLink, Download } from "lucide-react";
 
 interface DriveEmbedViewerProps {
   url: string;
@@ -50,39 +49,34 @@ const DriveEmbedViewer = memo(({ url, title }: DriveEmbedViewerProps) => {
   if (!isDrive && !isPdf) return null;
 
   return (
-    <Card className="border-border overflow-hidden">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <FileText className="w-5 h-5 text-primary" />
-          {title || "Document Viewer"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="aspect-[4/3] bg-muted rounded-lg overflow-hidden border">
-          <iframe
-            src={embedUrl}
-            className="w-full h-full border-0"
-            title={title || "Document Preview"}
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-            loading="lazy"
-          />
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild className="flex-1">
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4 mr-2" />
-              {isDrive ? "Open in Drive" : "Open"}
-            </a>
-          </Button>
-          <Button variant="outline" size="sm" asChild className="flex-1">
-            <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-              <Download className="h-4 w-4 mr-2" />
-              Download
-            </a>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col h-full">
+      {/* Full-page PDF/Drive viewer */}
+      <div className="flex-1 min-h-[70vh] bg-muted rounded-lg overflow-hidden border">
+        <iframe
+          src={embedUrl}
+          className="w-full h-full border-0"
+          title={title || "Document Preview"}
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+          loading="eager"
+          style={{ minHeight: '70vh' }}
+        />
+      </div>
+      {/* Action buttons */}
+      <div className="flex gap-2 mt-3 px-1">
+        <Button variant="outline" size="sm" asChild className="flex-1">
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4 mr-2" />
+            {isDrive ? "Open in Drive" : "Open"}
+          </a>
+        </Button>
+        <Button variant="outline" size="sm" asChild className="flex-1">
+          <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+            <Download className="h-4 w-4 mr-2" />
+            Download
+          </a>
+        </Button>
+      </div>
+    </div>
   );
 });
 
