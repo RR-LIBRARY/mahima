@@ -206,18 +206,10 @@ const WhiteLabelVideoPlayer = ({
           onContextMenu={(e) => e.preventDefault()}
         />
 
-        {/* Bottom-left blocker: Share button area (CRITICAL) */}
+        {/* Bottom blocker: Full-width bar covering share button & YouTube logo */}
         <div 
-          className="absolute bottom-10 left-0 w-28 h-16 z-30 pointer-events-auto"
-          style={{ background: 'transparent' }}
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          onContextMenu={(e) => e.preventDefault()}
-        />
-
-        {/* Bottom-right blocker: YouTube logo area */}
-        <div 
-          className="absolute bottom-10 right-0 w-24 h-16 z-30 pointer-events-auto"
-          style={{ background: 'transparent' }}
+          className="absolute bottom-0 left-0 right-0 h-[52px] z-30 pointer-events-auto"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 70%, transparent 100%)' }}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
           onContextMenu={(e) => e.preventDefault()}
         />
@@ -239,12 +231,12 @@ const WhiteLabelVideoPlayer = ({
           </Button>
         )}
 
-        {/* Mahima Academy Watermark - Extreme Bottom Right, above controls */}
+        {/* Mahima Academy Watermark - Bottom right, on top of blocker */}
         <div 
-          className="mahima-watermark absolute z-[45] flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-lg select-none"
+          className="mahima-watermark absolute z-[45] flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-lg select-none"
           style={{
-            right: '12px',
-            bottom: '56px',
+            right: '8px',
+            bottom: '14px',
             pointerEvents: 'none',
           }}
         >

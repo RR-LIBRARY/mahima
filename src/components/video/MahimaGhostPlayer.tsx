@@ -619,17 +619,17 @@ const MahimaGhostPlayer = memo(({
             </div>
           </div>
 
-          {/* WATERMARK - Clean bottom bar, no heavy black masking */}
+          {/* WATERMARK - Full-width bottom bar covering YouTube branding completely */}
           <div 
-            className="mahima-watermark absolute left-0 right-0 z-[45] flex items-center justify-between px-3 select-none"
+            className="mahima-watermark absolute left-0 right-0 z-[45] flex items-center justify-between px-2 select-none"
             style={{
               bottom: 0,
-              height: '48px',
-              background: 'transparent',
+              height: '52px',
+              background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)',
               pointerEvents: 'none',
             }}
           >
-            {/* Left: Refresh logo blocking YouTube share button */}
+            {/* Left: Refresh logo blocking YouTube share/logo area */}
             <div 
               className="flex items-center gap-2"
               style={{ pointerEvents: 'auto', cursor: 'default' }}
@@ -638,16 +638,16 @@ const MahimaGhostPlayer = memo(({
               <img 
                 src={refreshLogo} 
                 alt="" 
-                className="h-8 w-8 rounded"
+                className="h-9 w-9 rounded"
                 draggable={false}
               />
             </div>
-            {/* Right: Mahima Academy chip with subtle grey bg */}
+            {/* Right: Mahima Academy chip covering YouTube logo */}
             <div 
-              className="flex items-center gap-1.5 px-3 py-1 rounded-md select-none"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md select-none"
               style={{ 
-                background: 'rgba(128,128,128,0.65)', 
-                backdropFilter: 'blur(4px)',
+                background: 'rgba(0,0,0,0.7)', 
+                backdropFilter: 'blur(6px)',
                 pointerEvents: 'auto',
                 cursor: 'default',
               }}
