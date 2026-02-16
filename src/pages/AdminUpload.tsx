@@ -6,110 +6,113 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
-  Upload, Video, FileText, LogOut, CheckCircle, Trash2, 
-  BookOpen, Shield, Loader2, FileUp, Link as LinkIcon, Eye
+  Upload, Video, FileText, LogOut, Trash2,
+  BookOpen, Shield, Loader2, FileUp, Link as LinkIcon,
+  ChevronRight, ClipboardCheck,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import MediaPreview from "@/components/admin/MediaPreview";
 import { ADMIN_CONFIG } from "@/lib/adminConfig";
+import { cn } from "@/lib/utils";
+
+type UploadType = "VIDEO" | "PDF" | "DPP" | "NOTES" | "TEST";
 
 const AdminUpload = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Data states
+
+  // Breadcrumb drill-down state
   const [courses, setCourses] = useState<any[]>([]);
-  const [lessons, setLessons] = useState<any[]>([]);
-  
+  const [chapters, setChapters] = useState<any[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
+  const [chaptersLoading, setChaptersLoading] = useState(false);
+
   // Upload form states
-  const [uploadType, setUploadType] = useState<"video" | "pdf">("video");
+  const [uploadType, setUploadType] = useState<UploadType>("VIDEO");
   const [title, setTitle] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [watermarkText, setWatermarkText] = useState("Mahima Academy");
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<"PDF" | "DPP" | "NOTES">("PDF");
   const [pdfInputMode, setPdfInputMode] = useState<"file" | "url">("file");
   const [pdfUrl, setPdfUrl] = useState("");
+  const [description, setDescription] = useState("");
 
-  // Auth check with email verification
+  // Recent lessons for selected chapter
+  const [lessons, setLessons] = useState<any[]>([]);
+
+  const selectedCourse = courses.find(c => c.id === selectedCourseId);
+  const selectedChapter = chapters.find(c => c.id === selectedChapterId);
+
+  // Auth check
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
-        navigate('/admin/login');
-        return;
-      }
-
-      // SECURITY: Verify the email is the authorized admin email
+      if (!session?.user) { navigate('/admin/login'); return; }
       if (!ADMIN_CONFIG.isAuthorizedAdmin(session.user.email)) {
-        toast.error("Access denied. This account is not authorized for admin access.");
+        toast.error("Access denied.");
         await supabase.auth.signOut();
         navigate('/admin/login');
         return;
       }
-
-      // Verify admin role in database
       const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', session.user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-
+        .from('user_roles').select('role')
+        .eq('user_id', session.user.id).eq('role', 'admin').maybeSingle();
       if (!roleData) {
         toast.error("Access denied. Admin role not found.");
         await supabase.auth.signOut();
         navigate('/admin/login');
         return;
       }
-
-      // Fetch profile for display name
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', session.user.id)
-        .single();
-
+        .from('profiles').select('full_name').eq('id', session.user.id).single();
       setUser({ ...session.user, full_name: profile?.full_name || 'Admin' });
       setIsLoading(false);
-      fetchData();
     };
-
     checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        navigate('/admin/login');
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') navigate('/admin/login');
     });
-
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const fetchData = async () => {
-    try {
-      const [coursesRes, lessonsRes] = await Promise.all([
-        supabase.from('courses').select('*').order('created_at', { ascending: false }),
-        supabase.from('lessons').select(`*, courses (title)`).order('created_at', { ascending: false })
-      ]);
-
-      if (coursesRes.data) setCourses(coursesRes.data);
-      if (lessonsRes.data) setLessons(lessonsRes.data);
-    } catch (error) {
-      console.error("Error fetching data:", error);
+  // Fetch courses on mount
+  useEffect(() => {
+    if (!isLoading && user) {
+      supabase.from('courses').select('*').order('created_at', { ascending: false })
+        .then(({ data }) => { if (data) setCourses(data); });
     }
-  };
+  }, [isLoading, user]);
+
+  // Fetch chapters when course selected
+  useEffect(() => {
+    if (!selectedCourseId) { setChapters([]); return; }
+    setChaptersLoading(true);
+    supabase.from('chapters').select('*')
+      .eq('course_id', selectedCourseId)
+      .order('position', { ascending: true })
+      .then(({ data }) => {
+        setChapters(data || []);
+        setChaptersLoading(false);
+      });
+  }, [selectedCourseId]);
+
+  // Fetch lessons when chapter selected
+  useEffect(() => {
+    if (!selectedChapterId) { setLessons([]); return; }
+    supabase.from('lessons').select('*')
+      .eq('chapter_id', selectedChapterId)
+      .order('position', { ascending: true })
+      .then(({ data }) => setLessons(data || []));
+  }, [selectedChapterId]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -117,80 +120,48 @@ const AdminUpload = () => {
   };
 
   const handleUpload = async () => {
-    if (!title || !selectedCourse) {
-      toast.error("Please fill title and select a course");
+    if (!title || !selectedCourseId || !selectedChapterId) {
+      toast.error("Please fill title and select course & chapter via breadcrumbs");
       return;
     }
-
-    if (uploadType === "video" && !videoUrl) {
-      toast.error("Please enter video URL");
-      return;
-    }
-
-    if (uploadType === "pdf" && pdfInputMode === "file" && !pdfFile) {
-      toast.error("Please select a PDF file");
-      return;
-    }
-
-    if (uploadType === "pdf" && pdfInputMode === "url" && !pdfUrl) {
-      toast.error("Please enter a URL");
-      return;
-    }
+    if (uploadType === "VIDEO" && !videoUrl) { toast.error("Please enter video URL"); return; }
+    if (uploadType !== "VIDEO" && pdfInputMode === "file" && !pdfFile) { toast.error("Please select a file"); return; }
+    if (uploadType !== "VIDEO" && pdfInputMode === "url" && !pdfUrl) { toast.error("Please enter a URL"); return; }
 
     setIsUploading(true);
     try {
       let contentUrl = "";
-
-      if (uploadType === "pdf" && pdfInputMode === "url") {
+      if (uploadType !== "VIDEO" && pdfInputMode === "url") {
         contentUrl = pdfUrl;
-      } else if (uploadType === "pdf" && pdfFile) {
+      } else if (uploadType !== "VIDEO" && pdfFile) {
         const fileExt = pdfFile.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `lessons/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('content')
-          .upload(filePath, pdfFile);
-
+        const { error: uploadError } = await supabase.storage.from('content').upload(`lessons/${fileName}`, pdfFile);
         if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('content')
-          .getPublicUrl(filePath);
-
+        const { data: { publicUrl } } = supabase.storage.from('content').getPublicUrl(`lessons/${fileName}`);
         contentUrl = publicUrl;
       } else {
         contentUrl = videoUrl;
       }
 
       const { data: newLesson, error } = await supabase.from('lessons').insert({
-        course_id: parseInt(selectedCourse),
-        title: title,
+        course_id: selectedCourseId,
+        chapter_id: selectedChapterId,
+        title,
         video_url: contentUrl,
-        description: null,
+        description: description || null,
         overview: watermarkText || null,
         is_locked: true,
-        lecture_type: uploadType === "video" ? "VIDEO" : selectedCategory
+        lecture_type: uploadType,
       }).select().single();
 
       if (error) throw error;
-
-      toast.success("Content uploaded successfully! Redirecting to preview...");
-      
-      // Reset form
-      setTitle("");
-      setVideoUrl("");
-      setSelectedCourse("");
-      setPdfFile(null);
-      
-      // Auto-redirect to lesson view after successful upload
-      if (newLesson?.id) {
-        setTimeout(() => {
-          navigate(`/lesson/${newLesson.id}`);
-        }, 1000);
-      } else {
-        fetchData();
-      }
+      toast.success("Content uploaded successfully!");
+      setTitle(""); setVideoUrl(""); setPdfFile(null); setPdfUrl(""); setDescription("");
+      // Refresh lessons list
+      const { data } = await supabase.from('lessons').select('*')
+        .eq('chapter_id', selectedChapterId).order('position', { ascending: true });
+      setLessons(data || []);
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -200,14 +171,27 @@ const AdminUpload = () => {
 
   const handleDeleteLesson = async (id: string) => {
     if (!confirm("Delete this lesson?")) return;
-    
     const { error } = await supabase.from('lessons').delete().eq('id', id);
-    if (error) {
-      toast.error(error.message);
-    } else {
+    if (error) { toast.error(error.message); }
+    else {
       toast.success("Lesson deleted");
-      fetchData();
+      setLessons(prev => prev.filter(l => l.id !== id));
     }
+  };
+
+  const typeIcon = (type: string) => {
+    if (type === "VIDEO") return <Video className="h-4 w-4" />;
+    if (type === "TEST") return <ClipboardCheck className="h-4 w-4" />;
+    return <FileText className="h-4 w-4" />;
+  };
+
+  const typeColor = (type: string) => {
+    if (type === "VIDEO") return "bg-blue-100 text-blue-600";
+    if (type === "PDF") return "bg-orange-100 text-orange-600";
+    if (type === "DPP") return "bg-green-100 text-green-600";
+    if (type === "NOTES") return "bg-purple-100 text-purple-600";
+    if (type === "TEST") return "bg-red-100 text-red-600";
+    return "bg-muted text-muted-foreground";
   };
 
   if (isLoading) {
@@ -218,290 +202,283 @@ const AdminUpload = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img src={logo} alt="Mahima Academy" className="h-10 w-10 rounded-xl" />
-            <div>
-              <h1 className="text-xl font-bold flex items-center gap-2">
-                <Shield className="h-5 w-5 text-purple-400" />
-                Admin Upload Center
-              </h1>
-              <p className="text-sm text-purple-300">Welcome, {user?.full_name || 'Admin'}</p>
+  // === BREADCRUMB NAV ===
+  const renderBreadcrumb = () => (
+    <nav className="flex items-center gap-1.5 text-sm mb-4 flex-wrap py-2 px-1" aria-label="Breadcrumb">
+      <button
+        onClick={() => { setSelectedCourseId(null); setSelectedChapterId(null); }}
+        className={cn(
+          "hover:text-primary transition-colors",
+          !selectedCourseId ? "font-semibold text-foreground" : "text-muted-foreground"
+        )}
+      >
+        All Courses
+      </button>
+      {selectedCourse && (
+        <>
+          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <button
+            onClick={() => setSelectedChapterId(null)}
+            className={cn(
+              "hover:text-primary transition-colors",
+              !selectedChapterId ? "font-semibold text-foreground" : "text-muted-foreground"
+            )}
+          >
+            {selectedCourse.title}
+          </button>
+        </>
+      )}
+      {selectedChapter && (
+        <>
+          <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <span className="font-semibold text-foreground">{selectedChapter.title}</span>
+        </>
+      )}
+    </nav>
+  );
+
+  // === UPLOAD FORM (shown only when course + chapter selected) ===
+  const renderUploadForm = () => (
+    <div className="space-y-5">
+      {/* Type tabs */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {(["VIDEO", "PDF", "DPP", "NOTES", "TEST"] as UploadType[]).map(type => (
+          <button
+            key={type}
+            onClick={() => setUploadType(type)}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all whitespace-nowrap",
+              uploadType === type
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-muted/60 text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {typeIcon(type)}
+            {type === "VIDEO" ? "Lecture" : type === "NOTES" ? "Notes" : type}
+          </button>
+        ))}
+      </div>
+
+      {/* Title */}
+      <div className="space-y-1.5">
+        <Label>Title *</Label>
+        <Input placeholder="Content Title" value={title} onChange={e => setTitle(e.target.value)} />
+      </div>
+
+      {/* Description */}
+      <div className="space-y-1.5">
+        <Label>Description (Optional)</Label>
+        <textarea
+          placeholder="Brief description of this content..."
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          rows={3}
+        />
+      </div>
+
+      {/* Video URL or File upload */}
+      {uploadType === "VIDEO" ? (
+        <div className="space-y-2">
+          <Label>Video URL (YouTube/Vimeo/Archive.org/Drive)</Label>
+          <div className="relative">
+            <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="https://..." value={videoUrl} onChange={e => setVideoUrl(e.target.value)} className="pl-10" />
+          </div>
+          {videoUrl && <MediaPreview url={videoUrl} type="video" />}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label>Upload {uploadType}</Label>
+            <div className="flex gap-1 bg-muted rounded-md p-0.5">
+              <button type="button" className={cn("px-3 py-1 text-xs rounded", pdfInputMode === 'file' ? 'bg-background shadow text-foreground' : 'text-muted-foreground')} onClick={() => setPdfInputMode("file")}>
+                <FileUp className="h-3 w-3 inline mr-1" />File
+              </button>
+              <button type="button" className={cn("px-3 py-1 text-xs rounded", pdfInputMode === 'url' ? 'bg-background shadow text-foreground' : 'text-muted-foreground')} onClick={() => setPdfInputMode("url")}>
+                <LinkIcon className="h-3 w-3 inline mr-1" />URL
+              </button>
             </div>
           </div>
+          {pdfInputMode === "file" ? (
+            <>
+              <div className="border-2 border-dashed border-primary/30 rounded-lg p-6 text-center hover:border-primary/60 transition-colors">
+                <input id="pdfFile" type="file" accept=".pdf" onChange={e => setPdfFile(e.target.files?.[0] || null)} className="hidden" />
+                <label htmlFor="pdfFile" className="cursor-pointer">
+                  <FileUp className="h-8 w-8 mx-auto text-primary/50 mb-2" />
+                  {pdfFile ? <p className="text-primary font-medium text-sm">{pdfFile.name}</p> : <p className="text-muted-foreground text-sm">Click to select file</p>}
+                </label>
+              </div>
+              {pdfFile && <MediaPreview file={pdfFile} type="pdf" />}
+            </>
+          ) : (
+            <div className="relative">
+              <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Paste direct link..." value={pdfUrl} onChange={e => setPdfUrl(e.target.value)} className="pl-10" />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Watermark */}
+      <div className="space-y-1.5">
+        <Label>Watermark Text</Label>
+        <Input value={watermarkText} onChange={e => setWatermarkText(e.target.value)} />
+      </div>
+
+      <Button onClick={handleUpload} disabled={isUploading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold">
+        {isUploading ? <><Loader2 className="h-5 w-5 mr-2 animate-spin" />Uploading...</> : <><Upload className="h-5 w-5 mr-2" />Publish Content</>}
+      </Button>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 text-white shadow-lg">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="text-white border-white/30 hover:bg-white/10">
-              Full Dashboard
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-white hover:bg-white/10">
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
-            </Button>
+            <img src={logo} alt="Mahima Academy" className="h-10 w-10 rounded-xl" />
+            <div>
+              <h1 className="text-lg font-bold flex items-center gap-2">
+                <Shield className="h-5 w-5 text-purple-400" />
+                Upload Center
+              </h1>
+              <p className="text-xs text-purple-300">Welcome, {user?.full_name || 'Admin'}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin')} className="text-white border-white/30 hover:bg-white/10 text-xs">Dashboard</Button>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-white hover:bg-white/10"><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Upload Form */}
-          <Card className="border-2 border-purple-200 shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 border-b">
-              <CardTitle className="flex items-center gap-2 text-purple-700">
-                <Upload className="h-5 w-5" />
-                Upload New Material
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              {/* Type Selection */}
-              <div className="space-y-2">
-                <Label>Content Type</Label>
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant={uploadType === "video" ? "default" : "outline"}
-                    className={uploadType === "video" ? "bg-purple-600 hover:bg-purple-500" : ""}
-                    onClick={() => setUploadType("video")}
-                  >
-                    <Video className="h-4 w-4 mr-2" />
-                    Video
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={uploadType === "pdf" && selectedCategory === "PDF" ? "default" : "outline"}
-                    className={uploadType === "pdf" && selectedCategory === "PDF" ? "bg-orange-600 hover:bg-orange-500" : ""}
-                    onClick={() => { setUploadType("pdf"); setSelectedCategory("PDF"); }}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    PDF
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={uploadType === "pdf" && selectedCategory === "DPP" ? "default" : "outline"}
-                    className={uploadType === "pdf" && selectedCategory === "DPP" ? "bg-green-600 hover:bg-green-500" : ""}
-                    onClick={() => { setUploadType("pdf"); setSelectedCategory("DPP"); }}
-                  >
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    DPP
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={uploadType === "pdf" && selectedCategory === "NOTES" ? "default" : "outline"}
-                    className={uploadType === "pdf" && selectedCategory === "NOTES" ? "bg-blue-600 hover:bg-blue-500" : ""}
-                    onClick={() => { setUploadType("pdf"); setSelectedCategory("NOTES"); }}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Notes
-                  </Button>
-                </div>
-              </div>
+      <main className="max-w-5xl mx-auto px-4 py-6">
+        {renderBreadcrumb()}
 
-              {/* Title */}
-              <div className="space-y-2">
-                <Label htmlFor="title">Lesson Title</Label>
-                <Input
-                  id="title"
-                  placeholder="e.g., Physics Laws of Motion - Chapter 1"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="h-12"
-                />
-              </div>
+        {/* LEVEL 1: Course Grid */}
+        {!selectedCourseId && (
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Select a Course</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {courses.map(course => (
+                <button
+                  key={course.id}
+                  onClick={() => setSelectedCourseId(course.id)}
+                  className="p-4 border rounded-xl bg-card hover:border-primary hover:shadow-md transition-all text-left group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2.5 rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      <BookOpen className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm truncate">{course.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Grade {course.grade}</p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary" />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-              {/* Course Selection */}
-              <div className="space-y-2">
-                <Label>Select Course</Label>
-                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                  <SelectTrigger className="h-12">
-                    <SelectValue placeholder="Choose a course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses.map((course) => (
-                      <SelectItem key={course.id} value={course.id.toString()}>
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="h-4 w-4" />
-                          {course.title} ({course.grade})
+        {/* LEVEL 2: Chapter List */}
+        {selectedCourseId && !selectedChapterId && (
+          <div>
+            <h2 className="text-lg font-semibold mb-4">Select a Chapter</h2>
+            {chaptersLoading ? (
+              <p className="text-center text-muted-foreground py-8">Loading chapters...</p>
+            ) : chapters.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No chapters found for this course.</p>
+            ) : (
+              <div className="space-y-3">
+                {chapters.map(ch => (
+                  <button
+                    key={ch.id}
+                    onClick={() => setSelectedChapterId(ch.id)}
+                    className="w-full p-4 border rounded-xl bg-card hover:border-primary hover:shadow-sm transition-all text-left group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground">
+                          {ch.position || "—"}
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Video URL or PDF Upload */}
-              {uploadType === "video" ? (
-                <div className="space-y-3">
-                  <Label htmlFor="videoUrl">Video URL</Label>
-                  <div className="relative">
-                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      id="videoUrl"
-                      placeholder="https://youtube.com/watch?v=... or Vimeo link"
-                      value={videoUrl}
-                      onChange={(e) => setVideoUrl(e.target.value)}
-                      className="h-12 pl-10"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">Supports YouTube, Vimeo, and direct video links</p>
-                  {/* Video Preview Button */}
-                  {videoUrl && (
-                    <div className="pt-2">
-                      <MediaPreview url={videoUrl} type="video" />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Upload {selectedCategory}</Label>
-                    <div className="flex gap-1 bg-muted rounded-md p-0.5">
-                      <button
-                        type="button"
-                        className={`px-3 py-1 text-xs rounded ${pdfInputMode === 'file' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
-                        onClick={() => setPdfInputMode("file")}
-                      >
-                        <FileUp className="h-3 w-3 inline mr-1" />File
-                      </button>
-                      <button
-                        type="button"
-                        className={`px-3 py-1 text-xs rounded ${pdfInputMode === 'url' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
-                        onClick={() => setPdfInputMode("url")}
-                      >
-                        <LinkIcon className="h-3 w-3 inline mr-1" />URL
-                      </button>
-                    </div>
-                  </div>
-                  {pdfInputMode === "file" ? (
-                    <>
-                      <div className="border-2 border-dashed border-purple-200 rounded-lg p-6 text-center hover:border-purple-400 transition-colors">
-                        <input
-                          id="pdfFile"
-                          type="file"
-                          accept=".pdf"
-                          onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
-                          className="hidden"
-                        />
-                        <label htmlFor="pdfFile" className="cursor-pointer">
-                          <FileUp className="h-10 w-10 mx-auto text-purple-400 mb-2" />
-                          {pdfFile ? (
-                            <p className="text-purple-700 font-medium">{pdfFile.name}</p>
-                          ) : (
-                            <p className="text-gray-500">Click to select PDF file</p>
-                          )}
-                        </label>
+                        <p className="font-medium text-sm">{ch.title}</p>
                       </div>
-                      {pdfFile && (
-                        <div className="pt-2">
-                          <MediaPreview file={pdfFile} type="pdf" />
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="relative">
-                      <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Paste direct link to PDF/document..."
-                        value={pdfUrl}
-                        onChange={(e) => setPdfUrl(e.target.value)}
-                        className="h-12 pl-10"
-                      />
+                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* Overview */}
-              <div className="space-y-2">
-                <Label htmlFor="overview">Lesson Overview</Label>
-                <textarea
-                  id="overview"
-                  placeholder="Write a brief overview of this lesson for students..."
-                  value={watermarkText}
-                  onChange={(e) => setWatermarkText(e.target.value)}
-                  className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  rows={4}
-                />
+                  </button>
+                ))}
               </div>
+            )}
+          </div>
+        )}
 
-              <Button
-                onClick={handleUpload}
-                disabled={isUploading}
-                className="w-full h-12 bg-purple-600 hover:bg-purple-500 text-white font-semibold"
-              >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    Uploading...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-5 w-5 mr-2" />
-                    Upload Content
-                  </>
-                )}
-              </Button>
-            </CardContent>
-          </Card>
+        {/* LEVEL 3: Upload Form + Existing Lessons */}
+        {selectedCourseId && selectedChapterId && (
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* Upload Form */}
+            <Card className="border-2 border-primary/20 shadow-lg">
+              <CardHeader className="bg-primary/5 border-b">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Upload className="h-5 w-5" />
+                  Upload New Material
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Uploading to: {selectedCourse?.title} → {selectedChapter?.title}
+                </p>
+              </CardHeader>
+              <CardContent className="p-5">
+                {renderUploadForm()}
+              </CardContent>
+            </Card>
 
-          {/* Recent Uploads */}
-          <Card className="shadow-lg">
-            <CardHeader className="bg-gray-50 border-b">
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
-                Recent Uploads ({lessons.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[600px]">
-                {lessons.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                    <p>No lessons uploaded yet</p>
-                  </div>
-                ) : (
-                  <div className="divide-y">
-                    {lessons.map((lesson) => (
-                      <div key={lesson.id} className="p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex items-start gap-3 flex-1">
-                            <div className={`p-2 rounded-lg ${
-                              lesson.type === 'video' ? 'bg-blue-100 text-blue-600' : 'bg-orange-100 text-orange-600'
-                            }`}>
-                              {lesson.type === 'video' ? <Video className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-gray-900 truncate">{lesson.title}</h4>
-                              <p className="text-sm text-muted-foreground">{lesson.courses?.title || 'Unknown Course'}</p>
-                              <div className="flex items-center gap-2 mt-2">
-                                <Badge variant="secondary" className="text-xs">
-                                  {lesson.type === 'video' ? 'Video' : 'PDF'}
+            {/* Existing Lessons in this chapter */}
+            <Card className="shadow-lg">
+              <CardHeader className="bg-muted/30 border-b">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <BookOpen className="h-5 w-5" />
+                  Chapter Content ({lessons.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[500px]">
+                  {lessons.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      <FileText className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                      <p className="text-sm">No content yet. Upload the first item!</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {lessons.map(lesson => (
+                        <div key={lesson.id} className="p-3 hover:bg-muted/20 transition-colors">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                              <div className={cn("p-1.5 rounded-md", typeColor(lesson.lecture_type))}>
+                                {typeIcon(lesson.lecture_type)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{lesson.title}</p>
+                                <Badge variant="secondary" className="text-[10px] mt-0.5">
+                                  {lesson.lecture_type || "VIDEO"}
                                 </Badge>
-                                {lesson.is_locked && (
-                                  <Badge variant="outline" className="text-xs">Locked</Badge>
-                                )}
                               </div>
                             </div>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteLesson(lesson.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteLesson(lesson.id)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </main>
     </div>
   );

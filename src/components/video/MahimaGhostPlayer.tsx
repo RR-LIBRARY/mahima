@@ -560,16 +560,14 @@ const MahimaGhostPlayer = memo(({
             }}
           />
 
-          {/* PAUSE OVERLAY BLOCKER - Only covers bottom YouTube branding area */}
-          {!isPlaying && !showEndScreen && isLoaded && (
-            <div 
-              className="absolute bottom-0 left-0 right-0 z-[39] pointer-events-none"
-              style={{
-                height: '80px',
-                background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)',
-              }}
-            />
-          )}
+          {/* Bottom branding blocker - thin gradient only at very bottom, NO middle coverage */}
+          <div 
+            className="absolute bottom-0 left-0 right-0 z-[39] pointer-events-none"
+            style={{
+              height: '60px',
+              background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)',
+            }}
+          />
 
           {/* GHOST OVERLAY - INTERCEPTS ALL INTERACTIONS */}
           <div 
