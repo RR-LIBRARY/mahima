@@ -218,115 +218,97 @@ export const LectureModal = ({ isOpen, onClose, lesson, userId }: LectureModalPr
         )}
       </div>
 
-      {/* Collapsible Notes Section */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Collapse Toggle */}
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center justify-between px-4 py-3 bg-muted/50 border-y hover:bg-muted/80 transition-colors"
-        >
-          <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-            <FileText className="h-4 w-4" />
-            Show Notes & Description
-          </span>
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-          )}
-        </button>
+      {/* Collapsible Notes Section - Hidden for PDF/Drive content */}
+      {!(/drive\.google\.com/.test(lesson.video_url) || /\.pdf($|\?)/i.test(lesson.video_url)) && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Collapse Toggle */}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="flex items-center justify-between px-4 py-3 bg-muted/50 border-y hover:bg-muted/80 transition-colors"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+              <FileText className="h-4 w-4" />
+              Show Notes & Description
+            </span>
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            )}
+          </button>
 
-        {/* Tabs Content */}
-        {isExpanded && (
-          <div className="flex-1 overflow-hidden">
-            <Tabs defaultValue="notes" className="h-full flex flex-col">
-              <TabsList className="mx-4 mt-3 justify-start gap-2 bg-transparent h-auto p-0">
-                <TabsTrigger 
-                  value="notes" 
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  Smart Notes
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="discussion"
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2"
-                >
-                  <MessageCircle className="h-4 w-4 mr-2" />
-                  Discussion
-                </TabsTrigger>
-              </TabsList>
+          {/* Tabs Content */}
+          {isExpanded && (
+            <div className="flex-1 overflow-hidden">
+              <Tabs defaultValue="notes" className="h-full flex flex-col">
+                <TabsList className="mx-4 mt-3 justify-start gap-2 bg-transparent h-auto p-0">
+                  <TabsTrigger 
+                    value="notes" 
+                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Smart Notes
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="discussion"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2"
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Discussion
+                  </TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="notes" className="flex-1 overflow-hidden mt-0 px-4 py-4">
-                <div className="bg-card rounded-xl border p-4 h-full flex flex-col">
-                  {/* Notes Header */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <span className="font-semibold">Smart Notes</span>
-                      {isSaving && <span className="text-xs text-muted-foreground">Saving...</span>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleDownloadNotes}
-                        className="text-muted-foreground"
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        PDF
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsPreview(!isPreview)}
-                        className="text-muted-foreground"
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Preview
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Notes Editor */}
-                  <ScrollArea className="flex-1">
-                    {isPreview ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-                        {noteContent || "No notes yet..."}
+                <TabsContent value="notes" className="flex-1 overflow-hidden mt-0 px-4 py-4">
+                  <div className="bg-card rounded-xl border p-4 h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-semibold">Smart Notes</span>
+                        {isSaving && <span className="text-xs text-muted-foreground">Saving...</span>}
                       </div>
-                    ) : (
-                      <Textarea
-                        value={noteContent}
-                        onChange={(e) => setNoteContent(e.target.value)}
-                        placeholder={`# My Notes
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" onClick={handleDownloadNotes} className="text-muted-foreground">
+                          <Download className="h-4 w-4 mr-1" />
+                          PDF
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setIsPreview(!isPreview)} className="text-muted-foreground">
+                          <Eye className="h-4 w-4 mr-1" />
+                          Preview
+                        </Button>
+                      </div>
+                    </div>
+                    <ScrollArea className="flex-1">
+                      {isPreview ? (
+                        <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+                          {noteContent || "No notes yet..."}
+                        </div>
+                      ) : (
+                        <Textarea
+                          value={noteContent}
+                          onChange={(e) => setNoteContent(e.target.value)}
+                          placeholder={`# My Notes\n\nWrite your notes here using Markdown...\n\n**Bold text**, *italic text*, \`inline code\`\n\n- Bullet points`}
+                          className="min-h-[200px] resize-none border-0 focus-visible:ring-0 bg-transparent"
+                        />
+                      )}
+                    </ScrollArea>
+                    <p className="text-xs text-muted-foreground mt-3">
+                      Supports Markdown: **bold**, *italic*, `code`, # headings, - lists
+                    </p>
+                  </div>
+                </TabsContent>
 
-Write your notes here using Markdown...
-
-**Bold text**, *italic text*, \`inline code\`
-
-- Bullet points`}
-                        className="min-h-[200px] resize-none border-0 focus-visible:ring-0 bg-transparent"
-                      />
-                    )}
-                  </ScrollArea>
-
-                  <p className="text-xs text-muted-foreground mt-3">
-                    Supports Markdown: **bold**, *italic*, `code`, # headings, - lists
-                  </p>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="discussion" className="flex-1 overflow-hidden mt-0 px-4 py-4">
-                <div className="bg-card rounded-xl border p-4 h-full">
-                  <p className="text-muted-foreground text-center py-8">
-                    Discussion feature coming soon...
-                  </p>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </div>
-        )}
-      </div>
+                <TabsContent value="discussion" className="flex-1 overflow-hidden mt-0 px-4 py-4">
+                  <div className="bg-card rounded-xl border p-4 h-full">
+                    <p className="text-muted-foreground text-center py-8">
+                      Discussion feature coming soon...
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

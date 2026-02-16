@@ -208,8 +208,8 @@ const WhiteLabelVideoPlayer = ({
 
         {/* Bottom blocker: Full-width bar covering share button & YouTube logo */}
         <div 
-          className="absolute bottom-0 left-0 right-0 h-[52px] z-30 pointer-events-auto"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 70%, transparent 100%)' }}
+          className="absolute bottom-0 left-0 right-0 h-[60px] z-30 pointer-events-auto"
+          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)' }}
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
           onContextMenu={(e) => e.preventDefault()}
         />
@@ -233,20 +233,20 @@ const WhiteLabelVideoPlayer = ({
 
         {/* Mahima Academy Watermark - Bottom right, on top of blocker */}
         <div 
-          className="mahima-watermark absolute z-[45] flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-lg select-none"
+          className="mahima-watermark absolute z-[45] flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-2 rounded-lg select-none"
           style={{
-            right: '8px',
-            bottom: '14px',
+            right: '10px',
+            bottom: '16px',
             pointerEvents: 'none',
           }}
         >
           <img 
             src={mahimaLogo} 
             alt="" 
-            className="h-6 w-6 rounded"
+            className="h-8 w-8 rounded"
             draggable={false}
           />
-          <span className="text-white text-xs font-semibold tracking-wide">
+          <span className="text-white text-sm font-semibold tracking-wide">
             Mahima Academy
           </span>
         </div>
