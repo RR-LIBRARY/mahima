@@ -1,6 +1,4 @@
 import { memo, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { ExternalLink, Download } from "lucide-react";
 
 interface DriveEmbedViewerProps {
   url: string;
@@ -49,33 +47,16 @@ const DriveEmbedViewer = memo(({ url, title }: DriveEmbedViewerProps) => {
   if (!isDrive && !isPdf) return null;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Full-page PDF/Drive viewer */}
-      <div className="flex-1 min-h-[70vh] bg-muted rounded-lg overflow-hidden border">
-        <iframe
-          src={embedUrl}
-          className="w-full h-full border-0"
-          title={title || "Document Preview"}
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-          loading="eager"
-          style={{ minHeight: '70vh' }}
-        />
-      </div>
-      {/* Action buttons */}
-      <div className="flex gap-2 mt-3 px-1">
-        <Button variant="outline" size="sm" asChild className="flex-1">
-          <a href={url} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-4 w-4 mr-2" />
-            {isDrive ? "Open in Drive" : "Open"}
-          </a>
-        </Button>
-        <Button variant="outline" size="sm" asChild className="flex-1">
-          <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-            <Download className="h-4 w-4 mr-2" />
-            Download
-          </a>
-        </Button>
-      </div>
+    <div className="flex flex-col" style={{ height: '100%' }}>
+      {/* Full-page PDF/Drive viewer - no footer, fullscreen reader */}
+      <iframe
+        src={embedUrl}
+        className="w-full border-0 flex-1"
+        title={title || "Document Preview"}
+        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+        loading="eager"
+        style={{ height: 'calc(100vh - 56px)', minHeight: '80vh' }}
+      />
     </div>
   );
 });

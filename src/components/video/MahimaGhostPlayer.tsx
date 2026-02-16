@@ -560,12 +560,13 @@ const MahimaGhostPlayer = memo(({
             }}
           />
 
-          {/* PAUSE OVERLAY BLOCKER - Hides YouTube's pause recommendations */}
+          {/* PAUSE OVERLAY BLOCKER - Only covers bottom YouTube branding area */}
           {!isPlaying && !showEndScreen && isLoaded && (
             <div 
-              className="absolute inset-0 z-[39] pointer-events-none"
+              className="absolute bottom-0 left-0 right-0 z-[39] pointer-events-none"
               style={{
-                background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 30%, transparent 50%)',
+                height: '80px',
+                background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%)',
               }}
             />
           )}
@@ -575,6 +576,7 @@ const MahimaGhostPlayer = memo(({
             className="absolute inset-0 z-40"
             onClick={togglePlay}
             onDoubleClick={toggleFullscreen}
+            onTouchStart={handleMouseMove}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); }}
             onDragStart={(e) => e.preventDefault()}
             style={{ 
@@ -621,11 +623,11 @@ const MahimaGhostPlayer = memo(({
 
           {/* WATERMARK - Full-width bottom bar covering YouTube branding completely */}
           <div 
-            className="mahima-watermark absolute left-0 right-0 z-[45] flex items-center justify-between px-2 select-none"
+            className="mahima-watermark absolute left-0 right-0 z-[45] flex items-center justify-between px-3 select-none"
             style={{
               bottom: 0,
-              height: '52px',
-              background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 60%, transparent 100%)',
+              height: '60px',
+              background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)',
               pointerEvents: 'none',
             }}
           >
@@ -638,13 +640,13 @@ const MahimaGhostPlayer = memo(({
               <img 
                 src={refreshLogo} 
                 alt="" 
-                className="h-9 w-9 rounded"
+                className="h-11 w-11 rounded"
                 draggable={false}
               />
             </div>
             {/* Right: Mahima Academy chip covering YouTube logo */}
             <div 
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md select-none"
+              className="flex items-center gap-2 px-3 py-2 rounded-md select-none"
               style={{ 
                 background: 'rgba(0,0,0,0.7)', 
                 backdropFilter: 'blur(6px)',
@@ -656,10 +658,10 @@ const MahimaGhostPlayer = memo(({
               <img 
                 src={refreshLogo} 
                 alt="" 
-                className="h-5 w-5 rounded-sm"
+                className="h-7 w-7 rounded-sm"
                 draggable={false}
               />
-              <span className="text-white text-xs font-semibold tracking-wide">
+              <span className="text-white text-sm font-semibold tracking-wide">
                 Mahima Academy
               </span>
             </div>

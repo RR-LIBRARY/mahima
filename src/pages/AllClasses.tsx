@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, FileText, BookOpen, ClipboardList, FlaskConical } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { cn } from "@/lib/utils";
 import { useBatch } from "@/contexts/BatchContext";
@@ -14,6 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import BatchSelector from "@/components/dashboard/BatchSelector";
+import { LectureModal } from "@/components/course/LectureModal";
 
 interface Course {
   id: number;
@@ -23,15 +24,36 @@ interface Course {
   completedCount: number;
 }
 
+interface Resource {
+  id: string;
+  title: string;
+  video_url: string;
+  lecture_type: string;
+  course_title: string;
+  description?: string | null;
+  youtube_id?: string | null;
+}
+
+const RESOURCE_TYPE_ICONS: Record<string, React.ReactNode> = {
+  PDF: <FileText className="h-5 w-5 text-red-500" />,
+  DPP: <ClipboardList className="h-5 w-5 text-blue-500" />,
+  NOTES: <BookOpen className="h-5 w-5 text-green-500" />,
+  TEST: <FlaskConical className="h-5 w-5 text-purple-500" />,
+};
+
 const AllClasses = () => {
   const navigate = useNavigate();
   const { selectedBatch } = useBatch();
   const [courses, setCourses] = useState<Course[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resourcesLoading, setResourcesLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"subjects" | "resources">("subjects");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("title");
+  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
 
+  // Fetch courses
   useEffect(() => {
     const fetchCourses = async () => {
       try {
@@ -66,6 +88,46 @@ const AllClasses = () => {
     fetchCourses();
   }, [selectedBatch]);
 
+  // Fetch resources when tab switches
+  useEffect(() => {
+    if (activeTab !== "resources") return;
+    const fetchResources = async () => {
+      setResourcesLoading(true);
+      try {
+        let query = supabase
+          .from("lessons")
+          .select("id, title, video_url, lecture_type, description, youtube_id, chapters!inner(course_id, courses!inner(id, title))")
+          .in("lecture_type", ["PDF", "DPP", "NOTES", "TEST", "MATERIAL"])
+          .order("title", { ascending: true });
+
+        if (selectedBatch) {
+          query = query.eq("chapters.course_id", selectedBatch.id);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const formatted: Resource[] = (data || []).map((l: any) => ({
+          id: l.id,
+          title: l.title,
+          video_url: l.video_url,
+          lecture_type: l.lecture_type || "PDF",
+          course_title: l.chapters?.courses?.title || "",
+          description: l.description,
+          youtube_id: l.youtube_id,
+        }));
+
+        setResources(formatted);
+      } catch (err) {
+        console.error("Error fetching resources:", err);
+      } finally {
+        setResourcesLoading(false);
+      }
+    };
+
+    fetchResources();
+  }, [activeTab, selectedBatch]);
+
   const getSubjectCode = (title: string) => {
     const words = title.split(" ");
     if (words.length === 1) return title.substring(0, 3).toUpperCase();
@@ -84,6 +146,9 @@ const AllClasses = () => {
       if (sortBy === "lessons") return b.lessonCount - a.lessonCount;
       return 0;
     });
+
+  const filteredResources = resources
+    .filter(r => !searchQuery.trim() || r.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
   if (loading) {
     return <LoadingSpinner fullPage size="lg" text="Loading classes..." />;
@@ -139,21 +204,23 @@ const AllClasses = () => {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search subjects..."
+            placeholder={activeTab === "subjects" ? "Search subjects..." : "Search resources..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
           />
         </div>
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="title">Name</SelectItem>
-            <SelectItem value="lessons">Lessons</SelectItem>
-          </SelectContent>
-        </Select>
+        {activeTab === "subjects" && (
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="title">Name</SelectItem>
+              <SelectItem value="lessons">Lessons</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       <div className="flex gap-6 px-5 border-b border-border">
@@ -174,6 +241,7 @@ const AllClasses = () => {
       </div>
 
       <div className="p-5 space-y-4">
+        {/* Subjects Tab */}
         {activeTab === "subjects" && filteredCourses.map((course) => {
           const progress = getProgress(course);
           return (
@@ -200,14 +268,45 @@ const AllClasses = () => {
           );
         })}
 
-        {activeTab === "resources" && (
-          <div className="text-center py-12 text-muted-foreground"><p>No resources available yet.</p></div>
-        )}
-
         {activeTab === "subjects" && filteredCourses.length === 0 && (
           <div className="text-center py-12 text-muted-foreground"><p>No subjects found.</p></div>
         )}
+
+        {/* Resources Tab */}
+        {activeTab === "resources" && resourcesLoading && (
+          <div className="flex justify-center py-12">
+            <LoadingSpinner size="md" text="Loading resources..." />
+          </div>
+        )}
+
+        {activeTab === "resources" && !resourcesLoading && filteredResources.map((resource) => (
+          <div
+            key={resource.id}
+            onClick={() => setSelectedResource(resource)}
+            className="flex items-center gap-4 p-4 bg-card border border-border rounded-xl shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+          >
+            <div className="min-w-[44px] h-[44px] rounded-lg bg-muted flex items-center justify-center">
+              {RESOURCE_TYPE_ICONS[resource.lecture_type] || <FileText className="h-5 w-5 text-muted-foreground" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-medium text-foreground truncate">{resource.title}</h3>
+              <span className="text-xs text-muted-foreground">{resource.course_title} • {resource.lecture_type}</span>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground/50 shrink-0" />
+          </div>
+        ))}
+
+        {activeTab === "resources" && !resourcesLoading && filteredResources.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground"><p>No resources found.</p></div>
+        )}
       </div>
+
+      {/* Resource Modal */}
+      <LectureModal
+        isOpen={!!selectedResource}
+        onClose={() => setSelectedResource(null)}
+        lesson={selectedResource}
+      />
     </div>
   );
 };
