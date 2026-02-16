@@ -1,79 +1,103 @@
 
 
-# Admin Panel Restructure and Student Dashboard Synchronization
+# Comprehensive UI and Logic Update Plan
 
-## Context
+## What the Screenshots Reveal
 
-The uploaded `Advanced_prompt-2.md` requests a hierarchical breadcrumb-based content management system. However, following the project's stability constraints and the prompt's own rules ("DO NOT create separate database tables if similar exist", "USE EXISTING"), we will **enhance the existing schema** rather than creating parallel tables.
-
-**Existing schema mapping:**
-- `courses` table = Classes/Subjects (has `grade` field for batch filtering)
-- `chapters` table = Chapters (linked to `course_id`)
-- `lessons` table = All content types via `lecture_type` (VIDEO, PDF, DPP, NOTES, TEST)
-- `materials` table = Supplementary materials
-- `enrollments` table = User access control
-
-No new database tables are needed. The existing structure already supports the full hierarchy: **Course > Chapter > Lesson (with type filtering)**.
+1. **AllClasses page** ("Subjects" tab works but "Resources" tab shows "Resources coming soon" -- empty placeholder)
+2. **PDF Viewer** has "Open in Drive", "Download", and "My Notes" footer cluttering the view
+3. **Video Player** has a visible black bar masking in the middle area that should be removed; logo/watermark needs to be slightly larger
+4. **Admin Upload** already has ContentDrillDown with breadcrumbs -- needs to stay synchronized with student view
 
 ---
 
-## Phase 1: Fix Build Error
+## Phase 1: Video Player Fixes (MahimaGhostPlayer)
 
-The "no package.json found" error is transient. A whitespace change to `package.json` triggers a clean rebuild.
+**File:** `src/components/video/MahimaGhostPlayer.tsx`
 
-**File:** `package.json` -- add trailing newline
+### 1a. Remove the middle black bar masking
+The pause overlay (lines 563-571) creates a dark gradient over the entire video when paused. This causes the "black border half masking" visible in the screenshot. Change it to only cover the bottom portion (where YouTube branding lives) instead of the full viewport.
 
----
+### 1b. Increase logo and watermark size
+In the watermark section (lines 622-666):
+- Increase left logo from `h-9 w-9` to `h-11 w-11`
+- Increase right chip logo from `h-5 w-5` to `h-7 w-7`
+- Increase "Mahima Academy" text from `text-xs` to `text-sm`
+- Increase watermark bar height from `52px` to `60px` for better coverage
 
-## Phase 2: Admin Panel Content Management Restructure
+### 1c. Add Zoom/Fill toggle for mobile
+Add a floating overlay button (top-left) that toggles between:
+- **Fit Mode** (default `aspect-video` 16:9)
+- **Fill Mode** (CSS `object-fit: cover` equivalent via `transform: scale()` to fill the viewport, cropping black bars)
 
-### 2a. Replace flat Content tab with drill-down breadcrumb view
+Use the existing `VideoDisplayControls` component pattern. Add state `videoZoom` and apply CSS transform to the iframe container.
 
-Currently the Admin Content tab shows a flat list of all lessons. Restructure it to follow the breadcrumb pattern:
-
-**Breadcrumb flow:** `All Courses > [Selected Course] > [Selected Chapter] > Content (filtered by type tabs)`
-
-**File:** `src/pages/Admin.tsx` -- modify the Content `TabsContent` section
-
-Changes:
-- Add state: `contentViewCourse` (selected course for drill-down), `contentViewChapter` (selected chapter)
-- Level 1 (no course selected): Show grid of all courses as clickable cards
-- Level 2 (course selected, no chapter): Show breadcrumb `All Courses > [Course Name]`, list all chapters as clickable cards with lesson counts
-- Level 3 (course + chapter selected): Show breadcrumb `All Courses > [Course] > [Chapter]`, show content type tabs (All, Video, PDF, DPP, Notes, Test) filtering `lessons` by `lecture_type`, with edit/delete actions
-- Add a breadcrumb bar at top of content section using the existing `Breadcrumb` UI component
-
-### 2b. Upload tab - auto-select course/chapter from drill-down
-
-When navigating from Content tab Level 2 or 3 to the Upload tab, pre-select the course and chapter so the admin doesn't have to re-pick them.
-
-**File:** `src/pages/Admin.tsx` -- pass `contentViewCourse` and `contentViewChapter` as defaults when switching to Upload tab
+### 1d. Auto-hide controls on play, reappear on tap
+Already implemented (lines 219-229 `handleMouseMove` with 3-second timeout). Add touch support by calling `handleMouseMove` on `onTouchStart` of the ghost overlay div.
 
 ---
 
-## Phase 3: Student Dashboard Synchronization
+## Phase 2: PDF Viewer -- Full-Page Clean Layout
 
-The student-facing pages already follow the same breadcrumb pattern:
-- `AllClasses` -> shows courses filtered by batch
-- `ChapterView` -> shows chapters for a course
-- `LectureListing` -> shows lessons for a chapter with type tabs
+**File:** `src/components/course/LectureModal.tsx`
 
-### 3a. Add content type tabs to LectureListing
+When the lesson is a PDF/Drive type:
+- Remove the entire bottom notes section (lines 221-328) -- hide the "Show Notes & Description" toggle, "My Notes" textarea, "Open in Drive" button, and "Download" button
+- Make the DriveEmbedViewer iframe take `height: calc(100vh - 56px)` (full screen minus header height)
+- Keep the header (title + close button) only
 
-**File:** `src/pages/LectureListing.tsx`
+**File:** `src/components/course/DriveEmbedViewer.tsx`
 
-Add filter tabs matching the admin panel: All | Lectures | PDF | DPP | Notes | Test. Filter `lessons` by `lecture_type` field. This ensures the student sees the same content categories the admin uploads.
-
-### 3b. Consistent breadcrumbs on MyCourseDetail
-
-**File:** `src/pages/MyCourseDetail.tsx` -- already has breadcrumbs from prior edit. Verify chain: `My Courses > [Course Title]`
+- Remove the action buttons div (lines 59-69) with "Open in Drive" and "Download"
+- Change `min-height: 70vh` to `height: 100%` so it fills the parent container
+- Keep the `/preview` URL parameter for Google Drive links (already implemented)
 
 ---
 
-## Phase 4: Verify End-to-End with Real Accounts
+## Phase 3: AllClasses "Resources" Tab
 
-After implementation, test with:
-- **Admin** (naveenbharatprism@gmail.com / Ceomahima26): Login, navigate to Content tab, drill down Course > Chapter > see lessons by type, upload new content, verify it appears
-- **Student** (anujkumar75yadav@gmail.com / 12345678): Login, All Classes > select course > chapters > see content with type tabs
+**File:** `src/pages/AllClasses.tsx`
+
+The "Resources" tab (line 203-205) currently shows a static placeholder. Replace it with actual resources by:
+- Fetching lessons that have `lecture_type` in ('PDF', 'DPP', 'NOTES', 'TEST') from all courses the student has access to (or all courses if using batch filter)
+- Display them as a flat list of resource cards (reusing `LectureCard` component) grouped by type
+- Each card opens the `LectureModal` when clicked
+
+---
+
+## Phase 4: Admin Upload Synchronization
+
+**File:** `src/pages/Admin.tsx` and `src/components/admin/ContentDrillDown.tsx`
+
+The admin ContentDrillDown already follows the breadcrumb pattern:
+`All Courses > [Course] > [Chapter] > Content (with type tabs)`
+
+This is already synchronized with the student-facing structure:
+`AllClasses > ChapterView > LectureListing (with type tabs)`
+
+No structural changes needed here. The "Upload Here" button already pre-selects course/chapter when switching to the Upload tab. This existing logic ensures content uploaded by admin automatically appears in the student's "All Classes" directory.
+
+---
+
+## Phase 5: WhiteLabelVideoPlayer Watermark Fix
+
+**File:** `src/components/video/WhiteLabelVideoPlayer.tsx`
+
+- Match the same watermark sizing as MahimaGhostPlayer (larger logo `h-8 w-8`, larger text `text-sm`)
+- Ensure the bottom blocker height matches at `60px`
+- The infinity/share button already exists (Share2 icon) -- keep it positioned at top-right with the Mahima logo
+
+---
+
+## Phase 6: Navigation Breadcrumbs Consistency
+
+Already implemented across all views:
+- `AllClasses.tsx`: Dashboard > All Classes > [Batch]
+- `ChapterView.tsx`: All Classes > [Course] > Overview Syllabus
+- `LectureListing.tsx`: All Classes > [Course] > Overview Syllabus > [Chapter]
+- `MyCourseDetail.tsx`: Dashboard > My Courses > [Course]
+
+No changes needed.
 
 ---
 
@@ -81,17 +105,18 @@ After implementation, test with:
 
 | File | Changes |
 |------|---------|
-| `package.json` | Trailing newline to fix build |
-| `src/pages/Admin.tsx` | Restructure Content tab with drill-down breadcrumb navigation (Course > Chapter > Content with type tabs) |
-| `src/pages/LectureListing.tsx` | Add content type filter tabs (All, Video, PDF, DPP, Notes, Test) matching admin structure |
+| `src/components/video/MahimaGhostPlayer.tsx` | Remove middle black bar, increase logo/watermark size, add zoom/fill toggle, touch support |
+| `src/components/course/LectureModal.tsx` | Hide notes/download footer for PDF content, make Drive viewer full-page |
+| `src/components/course/DriveEmbedViewer.tsx` | Remove action buttons, full-height iframe |
+| `src/pages/AllClasses.tsx` | Populate "Resources" tab with actual PDF/DPP/Notes/Test lessons from Supabase |
+| `src/components/video/WhiteLabelVideoPlayer.tsx` | Match watermark sizing with MahimaGhostPlayer |
 
 ## What Does NOT Change
 
-- Database schema (no new tables -- uses existing courses, chapters, lessons)
-- Video player components (MahimaGhostPlayer, UnifiedVideoPlayer)
+- Database schema (no new tables)
+- Admin ContentDrillDown (already structured correctly)
 - Authentication logic and admin email protection
 - Sidebar navigation and routing
 - Enrollment and payment flow
-- AllClasses, ChapterView page structure (already correct)
-- Notification bell (already working)
+- ChapterView, LectureListing structure (already correct with breadcrumbs and type tabs)
 
